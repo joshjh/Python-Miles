@@ -15,7 +15,7 @@ def get_mileage(ps1, ps2):
     br = mechanize.Browser()
     br.set_handle_robots(False)
     br.addheaders = [('User-agent', 'Firefox')]
-    br.addheaders.append( ['Accept-Encoding','gzip'] ) # AA page seems to be GZIPED
+    br.addheaders.append( ['Accept-Encoding','gzip'] )
     br.open('http://www.theaa.com/route-planner/classic/planner_main.jsp')
     br.select_form(name="routePlanner")
     br["fromPlace"] = ps1
@@ -29,19 +29,26 @@ def get_mileage(ps1, ps2):
         match = re.search('miles', x)
         if match:
             break   # it's messy but me know the first match is the mileage
-    x = x.lstrip() # returns with black left chars
+    x = x.lstrip() # returns without left chars
     x = round(float(x[:5]), -1) # round to closest 10
-   # print '{} to {} is {} miles'.format(ps1, ps2, x)
     return x
 
-def matchset(our_ps, postcodelist):
+def confidence(PS):
     """
-    :param our_ps: our current post code
-    :param postcodelist: a list of postcodes to match
-    :return:
+    :param Check a postcode for confidence
+    :return: True/False
     """
-    for ps in postcodelist:
-        get_mileage(our_ps, ps)
+    POSTCODE_FORMATS = ['\w\w\d\w\d\w\w', '\w\d\w\d\w\w', '\w\d\d\w\w', '\w\d\d\d\w\w', '\w\w\d\d\w\w', '\w\w\d\d\d\w\w']
+
+    for X in POSTCODE_FORMATS:
+        match = re.match(X, PS.replace(" ", "")) # STRIP WHITESPACE BEFORE MATCHING
+        if match:
+            break
+
+    if match:
+        return True
+    else:
+        return False
 
 def openbook(workbook):
     """
@@ -53,9 +60,12 @@ def openbook(workbook):
     row = 0
     index = dict()
     for sn in sheet.col(0):
-        index[sn.value] = sheet.cell(row, 7).value
-        row += 1
-
+        if confidence(sheet.cell(row, 7).value):
+            index[sn.value] = sheet.cell(row, 7).value
+            row += 1
+        else:
+            print 'Bad postcode {} at row {}'.format(sheet.cell(row, 7).value, row)
+            row += 1
     return index
 
 index = openbook('/home/josh/Documents/test.xls')
